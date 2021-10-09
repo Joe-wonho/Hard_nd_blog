@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="" />
+    <meta
+      name="author"
+      content="Mark Otto, Jacob Thornton, and Bootstrap contributors"
+    />
+    <meta name="generator" content="Hugo 0.88.1" />
+    <title>상세페이지</title>
+
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script
+      src="https://code.jquery.com/jquery-3.5.1.js"
+      integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc="
+      crossorigin="anonymous"
+    ></script>
+    
+    <!-- JavaScript Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/js/bootstrap.bundle.min.js" 
+    integrity="sha384-kQtW33rZJAHjgefvhyyzcGF3C5TFyBQBA13V1RKPf4uH+bwyzQxZ6CmMZHmNBEfJ" crossorigin="anonymous"></script>
+       
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-uWxY/CJNBR+1zjPWmfnSnVxwRheevXITnMqoEIeG1LJrdI0GlVs/9cVSyPYXdcSF" crossorigin="anonymous">
+    
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.4.0/socket.io.js"></script>
+    <script type="text/javascript" src="../assets/api.js"></script>
+
+
+    <style>
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+      }
+    </style>
+
+    <!-- ******************Ajax콜*********************************** -->
+    <!-- ******************Ajax콜*********************************** -->
+    <!-- ******************Ajax콜*********************************** -->
+    <script>
+      const queryString = window.location.search;
+      const urlParams = new URLSearchParams(queryString);
+      const boardId = urlParams.get("boardId");
+
+      $(document).ready(function () {
+        get_detail();
+        get_comment();
+      });
+    //  해당 게시글 get
+      function get_detail() {
+        $("#detailBoard").empty();
+        $.ajax({
+          type: "GET",
+          url: `/api/board/${boardId}`,
+          data: {},
+          error: function (xhr, status, error) {
+            if (status == 404) {
+              alert("존재하지 않는 게시글입니다.");
+            }
+            window.location.href = "/board";
+          },
+          success: function (response) {
+            let boardsDetail = response["detail"];
+            let htmlTemp = ` <div class="card">
+                                    <h5 class="card-header">${
+                                      boardsDetail["title"]
+                                    }</h5>
+                                    <div class="card-body">
+                                        <h6 class="card-title">${
+                                          boardsDetail["username"]
+                                        }&nbsp;&nbsp;&nbsp; <span>${boardsDetail[
+              "date"
+            ].substring(0, 10)}</span></h6>
+                                                    <p class="card-text">${
+                                                      boardsDetail["contents"]
+                                                    }</p>
+                                                </div>
+                                            </div>  `;
+            $("#detailBoard").append(htmlTemp);
+          },
+        });
+      }
+    
+      //댓글 post ajax
+      function post_comment() {
+        let user;
+        getSelf(function (u) {
+          user = u;
+      });
+        let comment = $("#post-comment").val();
+        if (comment == ""){
+          alert("내용을 입력해주세요")
+          window.location.reload();
+        }
+        $.ajax({
+          type: "POST",
+          url: `/api/comment/${boardId}`,
+          headers: {
+            authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          data: {
+            comment: comment,
+          },
+          success: function (response) {
+            alert("댓글 저장 완료");
+            window.location.reload();
+          },
+        });
+      }
+    
+    // 해당 댓글 get
+      function get_comment(){
+        $("#comment-area").empty();
+        $.ajax({
+          type: "GET",
+          url: `/api/comment/${boardId}`,
+          data: {},
+          success: function (response) {
+            let comment = response["comments"];
+            if( comment ){
+              for(let i=0; i<comment.length; i++){
+            let htmlTemp = `
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+            <div class="ms-2 me-auto">
+              <div class="fw-bold">${comment[i]["username"]} <span>
+                <div class="btn-group btn-group-sm" style="margin-left: 30px">
+                  <a data-bs-toggle="modal" data-bs-target="#edit${comment[i]["commentId"]}" class="btn btn-outline-secondary">수정</a>
+                  <a data-bs-toggle="modal" data-bs-target="#delete${comment[i]["commentId"]}" class="btn btn-outline-secondary">삭제</a>
+                </div></span> 
+              </div>
+              ${comment[i]["comment"]}
+              </div>
+          </li>
+        <div class="modal fade" id="delete${comment[i]["commentId"]}" tabindex="-1" aria-labelledby="Label" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="Label">삭제하시겠습니까?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-footer">
+                <button onclick="delete_comment('${comment[i]["commentId"]}')"  update_comment
+                type="button" class="btn btn-secondary">예</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">아니오</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal fade" id="edit${comment[i]["commentId"]}" tabindex="-1" aria-labelledby="Label" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="Label">댓글수정</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <textarea id="edit-comment" rows="2" class="form-control" placeholder="댓글을 수정해주세요">${comment[i]["comment"]}</textarea>
+              </div>
+              <div class="modal-footer">
+                <button onclick="update_comment('${comment[i]["commentId"]}')"  update_comment
+                type="button" class="btn btn-secondary">저장</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+              </div>
+            </div>
+          </div>
+        </div>
+            `
+            $("#comment-area").append(htmlTemp);
+          }
+          }
+          },
+        })
+      }
+    
+    // 댓글 삭제
+    function delete_comment(commentId) {
+        let user;
+        getSelf(function (u) {
+          user = u;
+      });
+        
+        $.ajax({
+          type: "DELETE",
+          url: `/api/comment/${commentId}`,
+          headers: {
+            authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          data: {},
+          success: function (response) {
+            if (response["action"] == "success") {
+              alert("삭제완료!");
+              window.location.reload();
+            } else {
+              alert("삭제 권한이 없습니다");
+              window.location.reload();
+            }
+          },
+        });
+      }
+    
+    // 댓글 수정
+     function update_comment(commentId) {
+        let user;
+        getSelf(function (u) {
+          user = u;
+      });
+
+      let comment = $("#edit-comment").val();
+      if (comment == ""){
+          alert("내용을 입력해주세요")
+
+          window.location.reload();
+        }
+        $.ajax({
+          type: "PATCH",
+          url: `/api/comment/${commentId}`,
+          headers: {
+            authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          data: {
+            comment: comment
+          },
+          success: function (response) {
+            if (response["action"] == "success") {
+              alert("수정완료!");
+              window.location.reload();
+            } else {
+              alert("수정 권한이 없습니다");
+              window.location.reload();
+            }
+          },
+        });
+      }
+    
+    </script>
+  </head>
+
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="/">blog</a>
+      </div>
+    </nav>
+
+    <div class="mb-4 bg-light rounded-3">
+      <div class="container-fluid">
+        <button
+          style="display: block; margin: auto"
+          onclick="location.href='/home'"
+          class="btn btn-outline-dark btn-lg"
+          type="button"
+        >
+          뒤로가기
+        </button>
+      </div>
+    </div>
+    <!-- 상세 내용 붙는곳 -->
+    <div id="detailBoard" class="container"></div>
+    <p></p>
+    <div class="mb-4 bg-light rounded-3">
+      <div style="text-align: center; font-size: large" class="container-fluid">
+        댓글목록
+      </div>
+    </div>
+    <p></p>
+    
+    <!-- 댓글 붙는곳 -->
+    <div style ="padding-left: 3rem; padding-right: 3rem;" class="mb-4 bg-light rounded-3">
+      <div class="container-fluid">
+        <!-- 댓글 작성 폼 -->
+        <div class="input-group mb-3">
+          <textarea id="post-comment" rows="2" class="form-control" placeholder="댓글 작성"></textarea>
+          <button onclick = "post_comment()" class="btn btn-outline-secondary" type="button">작성하기</button>
+        </div>
+        <p></p>
+        <!-- 댓글 붙는 곳 -->
+        <ol class="list-group" id= "comment-area">
+          <li class="list-group-item d-flex justify-content-between align-items-start">
+            <div class="ms-2 me-auto">
+              <div class="fw-bold">댓글작성자 <span>
+                <div class="btn-group btn-group-sm" style="margin-left: 30px">
+                  <a onclick="" class="btn btn-outline-secondary">수정</a>
+                  <a onclick="" class="btn btn-outline-secondary">삭제</a>
+                </div></span> 
+              </div>
+              댓글내용
+            </div>
+          </li>
+
+        </ol>
+
+      </div>
+    </div>
+    <p></p>
+
+        <!-- Modal -->
+        <!-- <div class="modal fade" id="deleteComment" tabindex="-1" aria-labelledby="deleteCommentLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="deleteCommentLabel">삭제하시겠습니까?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-footer">
+                <button onclick="delete_comment()" 
+                type="button" class="btn btn-secondary">예</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">아니오</button>
+              </div>
+            </div>
+          </div>
+        </div>
+     -->
+
+  </body>
+</html>
